@@ -9,49 +9,74 @@ rebuild, and finish with a downloadable Word-format unit plan.
 
 ---
 
-## Deploying (public link, always on)
+## Deploying to Cloudflare Workers
 
-The whole app is one Node process — the Express server serves both the API and the built
-frontend — so it deploys as a single service. These steps take about 10 minutes.
+The app deploys as a single Worker that serves both the API and the built React app.
+Waiting on the Anthropic API costs no CPU time on Workers, so even the long final
+compile is fine.
 
-### 1. Put the code on GitHub
-
-The repo is already initialised and committed locally. Create an **empty private** repo at
-[github.com/new](https://github.com/new) (no README, no .gitignore), then:
+### 1. Push to GitHub (already done)
 
 ```bash
-git remote add origin https://github.com/YOUR-USERNAME/halcyon-myp-unit-designer.git
-git push -u origin main
+git push
 ```
 
-`.env` is gitignored, so your API key and password are not uploaded.
-
-### 2. Deploy on Render
-
-1. Sign up at [render.com](https://render.com) and connect your GitHub account.
-2. **New → Blueprint**, pick the repo. Render reads `render.yaml` and configures everything.
-3. It will prompt for two secrets:
-   - `ANTHROPIC_API_KEY` — your key from [console.anthropic.com](https://console.anthropic.com)
-   - `APP_PASSWORD` — the shared password you give staff
-   
-   `SESSION_SECRET` is generated automatically.
-4. Deploy. You get a URL like `https://halcyon-myp-unit-designer.onrender.com`.
-
-Share that URL plus the password. Nothing runs on your machine.
-
-### Plan choice
-
-`render.yaml` specifies the **starter** plan (~$7/month), which stays awake. The **free** plan
-works but sleeps after ~15 minutes idle, so the first visit takes ~50 seconds to load — poor
-for teachers. To try free first, change `plan: starter` to `plan: free`.
-
-### Updating after changes
+### 2. Log in to Cloudflare
 
 ```bash
-git add -A && git commit -m "your message" && git push
+npx wrangler login
 ```
 
-Render redeploys automatically.
+Opens a browser to authorise. Free Cloudflare account is enough to start.
+
+### 3. Set the three secrets
+
+These are stored encrypted by Cloudflare and never appear in the repo:
+
+```bash
+npx wrangler secret put ANTHROPIC_API_KEY   # paste your Anthropic key
+npx wrangler secret put APP_PASSWORD        # the shared staff password
+npx wrangler secret put SESSION_SECRET      # any long random string
+```
+
+For the last one, generate a value with:
+
+```bash
+openssl rand -hex 32
+```
+
+### 4. Deploy
+
+```bash
+npm run cf:deploy
+```
+
+This builds the frontend and deploys. You get a URL like
+`https://halcyon-myp-unit-designer.<your-subdomain>.workers.dev`.
+
+Share that URL plus the password.
+
+### Updating later
+
+```bash
+npm run cf:deploy
+```
+
+### Testing the Worker locally
+
+```bash
+npm run cf:dev
+```
+
+Runs the real Workers runtime on `http://localhost:8787`, reading secrets from
+`.dev.vars` (gitignored). This is closer to production than `npm run dev`.
+
+### Plan note
+
+The Cloudflare **free** plan allows 100k requests/day with no cold starts, which is
+generous for a staff tool. Its limit is **10ms CPU per request** — fine for normal
+conversation, but a large PDF upload has to be parsed and re-serialised and may exceed
+it. The **$5/month Workers Paid** plan raises this to 30s and removes the concern.
 
 ---
 
@@ -76,7 +101,7 @@ Leave `APP_PASSWORD` empty in `.env` to skip the login screen during development
 | `SESSION_SECRET` | Signs session tokens. Set in production, or restarts log everyone out. |
 | `SESSION_HOURS` | Login validity, default 12. |
 | `ANTHROPIC_MODEL` | Default `claude-sonnet-5`. |
-| `API_PORT` | Local dev only — leave unset when deploying. |
+| `API_PORT` | Local Node dev only. Not used by the Cloudflare Worker. |
 
 ---
 

@@ -1,0 +1,29 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "halcyon-myp-unit-designer",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-08-01",
+
+  "assets": {
+    // Vite's build output — the React app.
+    "directory": "./dist/",
+    // Lets the Worker fall through to static files for non-API routes.
+    "binding": "ASSETS",
+    // Unknown paths return index.html so client-side routing works.
+    "not_found_handling": "single-page-application",
+    // Everything under /api/* hits the Worker instead of being treated as a missing file.
+    "run_worker_first": ["/api/*"]
+  },
+
+  "observability": {
+    // Keeps request logs viewable in the dashboard for debugging.
+    "enabled": true
+  },
+
+  "vars": {
+    // Non-secret config. Secrets (ANTHROPIC_API_KEY, APP_PASSWORD, SESSION_SECRET)
+    // are set with `wrangler secret put` and never live in this file.
+    "ANTHROPIC_MODEL": "claude-sonnet-5",
+    "SESSION_HOURS": "12"
+  }
+}
