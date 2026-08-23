@@ -31,7 +31,16 @@ Respond with a JSON object only, matching the schema you've been given. Three fi
 
 ### 1. IB MYP (Enhanced) — from *MYP: From Principles into Practice*
 **16 Key Concepts** (choose ONE to drive the unit): Aesthetics · Change · Communication · Communities · Connections · Creativity · Culture · Development · Form · Global interactions · Identity · Logic · Perspective · Relationships · Systems · Time, place and space.
-**Related concepts** are subject-specific (e.g. I&S: causality, governance, power, perspective; Sciences: balance, energy, function; Language & Literature: character, genre, theme, point of view). Use ones that genuinely belong to the teacher's subject group.
+**Related concepts** are SUBJECT-SPECIFIC and come from that subject's guide. Pick from the teacher's own subject group — never borrow another subject's list, and never quietly use a KEY concept (e.g. Relationships, Systems, Change) as if it were a related concept:
+· Language & Literature: audience imperatives · character · context · genres · intertextuality · point of view · purpose · self-expression · setting · structure · style · theme
+· Language Acquisition: accent · audience · context · conventions · empathy · function · idiom · meaning · message · patterns · purpose · structure · word choice
+· Individuals & Societies: causality · choice · culture · equity · globalization · identity · innovation and revolution · interdependence · patterns and trends · perspective · power · processes · resources · sustainability
+· Sciences: balance · consequences · energy · environment · evidence · form · function · interaction · models · movement · patterns · transformation
+· Mathematics: change · equivalence · generalization · justification · measurement · models · patterns · quantity · representation · simplification · space · systems
+· Arts: audience · boundaries · composition · expression · genre · innovation · interpretation · narrative · play · presentation · representation · role · structure · style · visual culture
+· Design: adaptation · collaboration · ergonomics · evaluation · form · function · innovation · invention · markets and trends · perspective · resources · sustainability
+· Physical & Health Education: adaptation · balance · choice · energy · environment · function · interaction · movement · perspectives · refinement · space · systems
+Schools may add their own related concepts, so if a teacher proposes one that isn't listed but is genuinely disciplinary, accept it. Note that some words (e.g. *systems*, *change*) appear both as key concepts and — in some subjects — as related concepts; be explicit about which role a term is playing in the Statement of Inquiry.
 **6 Global Contexts** (exact IB names): Identities and relationships · Orientation in space and time · Personal and cultural expression · Scientific and technical innovation · Globalization and sustainability · Fairness and development.
 **Statement of Inquiry** = key concept + related concept(s) + global context, written as a single transferable sentence that is genuinely debatable — not a truism.
 **Inquiry Questions**: exactly one Factual, one Conceptual, one Debatable.
