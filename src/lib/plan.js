@@ -110,7 +110,7 @@ th,td{border:1px solid ${H.greyLight};padding:5px 8px;text-align:left;vertical-a
 th{background:${H.cream}}
 li{margin:3px 0}p{margin:6px 0}
 </style></head><body>
-<div class="hdr"><p>Halcyon London International School · MYP Unit Plan · ${new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}</p></div>
+<div class="hdr"><p>IB Middle Years Programme · Unit Plan · ${new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}</p></div>
 ${body}</body></html>`;
   const blob = new Blob([html], { type: "application/msword" });
   const url = URL.createObjectURL(blob);

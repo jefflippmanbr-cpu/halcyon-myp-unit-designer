@@ -29,9 +29,12 @@ with anyone, plus Word and PDF exports.
   October 2026 against the IB's subject briefs and schools' published criteria, and include the
   current Language Acquisition (2020) and Arts guides. The strands are brief paraphrases; the
   official descriptors stay in the subject guides.
-- **Resource links** are checked before a teacher sees them (`/api/check-links`). Working links are
-  kept; dead or unverifiable deep links fall back to the site's home page, marked "(home page)";
-  links to sites that don't answer are removed.
+- **Resource links.** The model links a resource only when it's sure of the exact page; otherwise
+  it gives a direction ("search the title on BBC Sounds"). Every link is checked before a teacher
+  sees it (`/api/check-links`). Only confirmed links survive; any other link becomes plain text
+  with a direction to search for it. A resource is never dropped for lack of a link.
+- **Any school, anywhere.** The coach asks where the school is in Step 1, and roots relevance,
+  resources, experts and site visits in that place.
 - **Private links** (`/p/<id>`) are stored in Cloudflare KV. Creating one needs the staff
   password; viewing one needs only the link. The creating browser holds an edit key that lets it
   update the link on rebuild, or delete it.

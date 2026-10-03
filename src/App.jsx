@@ -185,8 +185,8 @@ export default function App() {
   const startUnit = (m, f) => {
     setPhase("chat"); setView("coach"); setMode(m);
     const base = m === "new"
-      ? "Hello — I'm a Halcyon MYP teacher designing a brand-new unit from scratch."
-      : "Hello — I'm a Halcyon MYP teacher. I want to transform and strengthen an existing unit using the Enhanced MYP, the Transcend 6 Leaps, PBL Gold Standard and Explorer Mode.";
+      ? "Hello — I'm an MYP teacher designing a brand-new unit from scratch."
+      : "Hello — I'm an MYP teacher. I want to transform and strengthen an existing unit using the Enhanced MYP, the Transcend 6 Leaps, PBL Gold Standard and Explorer Mode.";
     const first = { role: "user", content: buildFirstMessage(base, f), displayText: f ? `${base} (Attached: ${f.name})` : base, hidden: true };
     setFile(f ? { name: f.name, kind: f.kind } : null);
     setMsgs([first]);

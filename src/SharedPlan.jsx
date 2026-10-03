@@ -5,19 +5,19 @@ import { PlanDocument } from "./components/PlanDocument.jsx";
 import { Layers, Download, Printer } from "./components/Icons.jsx";
 
 // The public view behind a private link (/p/<id>). No password: the unguessable link is
-// the permission, so a teacher can share a plan with anyone, inside Halcyon or not.
+// the permission, so a teacher can share a plan with anyone, at any school.
 export default function SharedPlan({ id }) {
   const [plan, setPlan] = useState(null);
   const [error, setError] = useState(null);
   useEffect(() => {
-    fetchPlan(id).then(p => { setPlan(p); document.title = `${p.title} · Halcyon MYP Unit Plan`; }).catch(e => setError(e.message));
+    fetchPlan(id).then(p => { setPlan(p); document.title = `${p.title} · MYP Unit Plan`; }).catch(e => setError(e.message));
   }, [id]);
 
   return (
     <div className="shared">
       <div className="shared-top">
         <div className="brand-mark"><Layers size={15} style={{ color: "#8FC4A8" }} /></div>
-        <div className="brand-name">Halcyon MYP Unit Plan</div>
+        <div className="brand-name">MYP Unit Plan</div>
         <div className="grow" />
         {plan && <>
           <button className="btn btn-sm btn-top" onClick={() => downloadWord(plan.markdown, plan.title)}><Download size={13} />Word</button>

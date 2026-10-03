@@ -159,7 +159,7 @@ export function PlanDocument({ markdown }) {
       </nav>
       <div className="doc-main">
         <header className="doc-hero">
-          <div className="school">Halcyon London International School · MYP Unit Plan</div>
+          <div className="school">IB Middle Years Programme · Unit Plan</div>
           <h1>{plan.title}</h1>
           {plan.meta.length > 0 && <div className="meta">{plan.meta.map((m, i) => <span key={i}>{m}</span>)}</div>}
           <div className="fwline">{FRAMEWORKS.map(f => <span key={f.key} className={`fw-${f.key}`} title={f.name} />)}</div>

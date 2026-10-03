@@ -228,8 +228,9 @@ async function handleDeletePlan(request, env, id) {
 
 // ─── Link checking ─────────────────────────────────────────────────────────────
 // Resources come with clickable links, but a model can produce a plausible URL that 404s.
-// Every link is checked here before a teacher sees it. The client keeps working links,
-// swaps dead ones for the site's home page, and drops links whose site doesn't answer.
+// Every link is checked here before a teacher sees it. The client keeps only confirmed
+// links; any other link becomes plain text with a direction to search for it. `fallback`
+// tells the client whether the site itself answers (so it can say "search on <site>").
 // Only public http(s) hosts are fetched (no IPs, localhost or internal names), so this
 // can't be pointed at anything private.
 const MAX_LINKS = 10;               // Workers allow 50 subrequests; a link may take up to 4

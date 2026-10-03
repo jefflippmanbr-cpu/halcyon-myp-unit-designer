@@ -1,12 +1,13 @@
 import { checkLinks } from "./api.js";
 
 // ─── Verified resource links ───────────────────────────────────────────────────
-// The model is asked for clickable links, but can produce a convincing URL that 404s.
-// Every link in a coach reply or a plan goes through /api/check-links first:
-//   ok              → kept as written
-//   dead / unclear  → replaced by the site's home page, if that answers, marked "(home page)"
-//   site gone       → the link is removed and its text kept
-// so a teacher never clicks through to a dead page.
+// The model can produce a convincing URL that 404s, and a broken link costs a teacher's
+// trust far more than no link at all. So every link in a coach reply or a plan goes
+// through /api/check-links first:
+//   ok           → kept as written
+//   anything else → the link is removed, the resource kept, and a plain direction added
+//                   ("search for it on gutenberg.org"). Never a home-page stand-in.
+// The resource itself is never dropped.
 
 const MD_LINK = /\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g;
 const BARE = /(?<![(<\w/])(https?:\/\/[^\s)<>\]]+[^\s)<>\].,;:!?'"])/g;
@@ -25,24 +26,21 @@ export async function verifyLinks(md) {
   if (!urls.length) return { md, changed: 0, checked: 0 };
   const results = {};
   for (let i = 0; i < urls.length; i += 10) Object.assign(results, await checkLinks(urls.slice(i, i + 10)));
-  const fix = (u) => {
-    const r = results[u];
-    if (!r || r.status === "ok") return u;   // unchecked (shouldn't happen) or fine
-    return r.fallback || null;
-  };
+  // Only a link the server actually confirmed survives. If the check itself failed, the
+  // link is unverified — and an unverified link is treated like a broken one.
+  const ok = (u) => results[u]?.status === "ok";
+  // Where to tell the teacher to look: the site, unless we know it doesn't answer.
+  const direction = (u) => results[u] && !results[u].fallback ? "search for it by name" : `search for it on ${host(u)}`;
   let changed = 0;
   let out = md.replace(MD_LINK, (all, text, u) => {
-    const f = fix(u);
-    if (f === u) return all;
+    if (ok(u)) return all;
     changed++;
-    // Say so when a link now goes to the site's front page rather than the resource itself.
-    return f ? `[${text}](${f}) (home page)` : text;
+    return `${text} (${direction(u)})`;
   });
   out = out.replace(BARE, (u) => {
-    const f = fix(u);
-    if (f === u) return u;
+    if (ok(u)) return u;
     changed++;
-    return f ? `[${host(f)}](${f})` : host(u);
+    return `${host(u)} (${direction(u)})`;
   });
   return { md: out, changed, checked: urls.length };
 }
