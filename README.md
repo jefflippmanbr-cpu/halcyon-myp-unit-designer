@@ -1,82 +1,33 @@
 # Halcyon MYP Unit Designer
 
 A 14-step MYP unit design coach for teachers at Halcyon London International School, built on
-three frameworks: the **IB Enhanced MYP**, the **Transcend 6 Leaps**, and the **PBLWorks Gold
-Standard**.
+four frameworks: the **IB Enhanced MYP**, the **Transcend 6 Leaps**, the **PBLWorks Gold
+Standard**, and **Explorer Mode** from *The Disengaged Teen* (Winthrop & Anderson, 2025).
 
 Teachers either design a new unit from scratch or upload an existing one for diagnosis and
-rebuild, and finish with a downloadable Word-format unit plan.
+rebuild. As they work, every decision is kept in a live **unit record**. At the end the app
+builds a full, designed unit plan from that record, saved to a **private link** they can share
+with anyone, plus Word and PDF exports.
 
 ---
 
-## Deploying to Cloudflare Workers
+## How it works
 
-The app deploys as a single Worker that serves both the API and the built React app.
-Waiting on the Anthropic API costs no CPU time on Workers, so even the long final
-compile is fine.
+- **Coach turns** use structured output (`step`, `message`, `frameworks`, `captured`) and stream
+  in as they're written. `captured` holds record entries such as `"10 | Formative — Gallery walk: …"`.
+  The number is the step the item *belongs to*, so an idea mentioned early is filed in the right
+  place and picked up when that step comes.
+- **The unit record** is shown beside the chat and sent back to the coach every turn, so it works
+  from what is actually settled.
+- **The plan** is compiled in a separate streamed call from the record (authoritative) plus the
+  conversation (for context). The app then checks that named items, such as formatives, Explorer
+  Moments and sites, made it in.
+- **Private links** (`/p/<id>`) are stored in Cloudflare KV. Creating one needs the staff
+  password; viewing one needs only the link. The creating browser holds an edit key that lets it
+  update the link on rebuild, or delete it.
 
-### 1. Push to GitHub (already done)
-
-```bash
-git push
-```
-
-### 2. Log in to Cloudflare
-
-```bash
-npx wrangler login
-```
-
-Opens a browser to authorise. Free Cloudflare account is enough to start.
-
-### 3. Set the three secrets
-
-These are stored encrypted by Cloudflare and never appear in the repo:
-
-```bash
-npx wrangler secret put ANTHROPIC_API_KEY   # paste your Anthropic key
-npx wrangler secret put APP_PASSWORD        # the shared staff password
-npx wrangler secret put SESSION_SECRET      # any long random string
-```
-
-For the last one, generate a value with:
-
-```bash
-openssl rand -hex 32
-```
-
-### 4. Deploy
-
-```bash
-npm run cf:deploy
-```
-
-This builds the frontend and deploys. You get a URL like
-`https://halcyon-myp-unit-designer.<your-subdomain>.workers.dev`.
-
-Share that URL plus the password.
-
-### Updating later
-
-```bash
-npm run cf:deploy
-```
-
-### Testing the Worker locally
-
-```bash
-npm run cf:dev
-```
-
-Runs the real Workers runtime on `http://localhost:8787`, reading secrets from
-`.dev.vars` (gitignored). This is closer to production than `npm run dev`.
-
-### Plan note
-
-The Cloudflare **free** plan allows 100k requests/day with no cold starts, which is
-generous for a staff tool. Its limit is **10ms CPU per request** — fine for normal
-conversation, but a large PDF upload has to be parsed and re-serialised and may exceed
-it. The **$5/month Workers Paid** plan raises this to 30s and removes the concern.
+Code map: `src/prompts.js` (coach and compile prompts, schema), `src/lib/` (streaming, parsing,
+record, plan rendering, storage), `src/components/`, `worker/index.js` (the whole API).
 
 ---
 
@@ -84,11 +35,43 @@ it. The **$5/month Workers Paid** plan raises this to 30s and removes the concer
 
 ```bash
 npm install
-cp .env.example .env     # then add your ANTHROPIC_API_KEY
-npm run dev              # http://localhost:5173
+cp .dev.vars.example .dev.vars   # then add your ANTHROPIC_API_KEY
+npm run dev                      # http://localhost:5173
 ```
 
-Leave `APP_PASSWORD` empty in `.env` to skip the login screen during development.
+This runs Vite and the real Worker (`wrangler dev` on port 8787), with a simulated KV store. Leave
+`APP_PASSWORD` empty in `.dev.vars` to skip the login screen.
+
+---
+
+## Deploying to Cloudflare Workers
+
+One Worker serves the API and the built React app. Waiting on the Anthropic API costs no CPU
+time, and the streams are piped through untouched, so the long plan compile is fine.
+
+First time only:
+
+```bash
+npx wrangler login
+npx wrangler secret put ANTHROPIC_API_KEY   # your Anthropic key
+npx wrangler secret put APP_PASSWORD        # the shared staff password
+npx wrangler secret put SESSION_SECRET      # e.g. openssl rand -hex 32
+```
+
+Then, and for every update:
+
+```bash
+npm run cf:deploy
+```
+
+The KV namespace for saved plans (`PLANS`) is created automatically on the first deploy.
+
+### Plan note
+
+The Cloudflare **free** plan allows 100k requests/day, and KV's free tier is 1,000 writes per day
+and 1GB of storage: thousands of saved plans. Its limit is **10ms CPU per request**. That's fine
+for normal use, but a large PDF upload has to be parsed and may exceed it. The **$5/month
+Workers Paid** plan raises this to 30s.
 
 ---
 
@@ -98,44 +81,44 @@ Leave `APP_PASSWORD` empty in `.env` to skip the login screen during development
 |---|---|
 | `ANTHROPIC_API_KEY` | **Required.** Stays server-side; never sent to the browser. |
 | `APP_PASSWORD` | Shared staff password. Unset = no login required. |
-| `SESSION_SECRET` | Signs session tokens. Set in production, or restarts log everyone out. |
-| `SESSION_HOURS` | Login validity in hours, default 168 (7 days). |
-| `ANTHROPIC_MODEL` | Default `claude-sonnet-5`. |
-| `API_PORT` | Local Node dev only. Not used by the Cloudflare Worker. |
+| `SESSION_SECRET` | Signs session tokens. Rotate it to log everyone out. |
+| `SESSION_HOURS` | Login validity in hours, default 168 (7 days). In `wrangler.jsonc`. |
+| `ANTHROPIC_MODEL` | Default `claude-sonnet-5`. In `wrangler.jsonc`. |
 
 ---
 
 ## How access control works
 
-The password protects the **API key**, not the interface. The frontend holds no secrets, but
-`/api/messages` spends real money, so that is what's gated:
+The password protects the **API key** and storage, not the interface:
 
 - The password is verified server-side using a timing-safe comparison.
 - On success the server issues an HMAC-SHA256 session token with an expiry.
-- Every `/api/messages` call must carry that token, or it returns 401.
-
-A UI-only password would be bypassed by POSTing to the endpoint directly. This isn't.
+- `/api/messages` and creating or updating a saved plan require that token, or they return 401.
+- A saved plan is readable by anyone with its link. Links are 128-bit random ids, not guessable
+  or listable, and every page is marked `noindex`. Only the creating browser's edit key (stored
+  server-side as a hash) can change or delete one.
 
 ---
 
 ## Cost, and what is *not* yet protected
 
-Each completed unit costs roughly **£0.35–0.45** in Anthropic API usage. Uploading an existing
-unit costs more, since the document is resent with each turn.
+Each completed unit was measured at roughly £0.35–0.45 in Anthropic API usage before the
+redesign. The separate, richer plan compile and the record sent each turn add to that. Expect
+somewhat more, perhaps around **£0.50** (an estimate, not yet measured). Uploads cost more,
+since the document is resent with each turn.
 
-**There is currently no rate limit and no spend cap.** Anyone who has the password can generate
-unlimited units on your account, and shared passwords do get forwarded. Before wider rollout,
-consider adding per-user rate limiting and a monthly ceiling, and set a billing alert in the
-Anthropic Console.
+**There is currently no rate limit and no spend cap.** Anyone with the password can generate
+unlimited units on your account. Set a monthly spend limit and a billing alert in the Anthropic
+Console. Before sharing widely, consider per-teacher logins (e.g. Cloudflare Access with Google
+sign-in) in place of the shared password.
 
 ---
 
 ## Notes
 
-- **Draft auto-save** — a unit in progress is saved to the teacher's browser after every turn
-  and restored on return, so a reload or a discarded tab doesn't lose the work. It is
-  per-browser: a draft started on a laptop won't appear on an iPad.
-- **Uploads** — PDF, .docx, .txt and .md, up to 10MB. Scanned PDFs without a text layer are read
-  as images and extraction can be patchier.
+- **Draft auto-save.** The conversation, record and plan are saved in the teacher's browser after
+  every turn and restored on return. A draft is per-browser; a saved plan link works anywhere.
+- **Uploads.** PDF, .docx, .txt and .md, up to 10MB. Scanned PDFs without a text layer are read
+  as images, and extraction can be patchier.
 - `HalcyonMYPStudio.jsx` in the project root is the original single-file prototype, kept as the
   reference for the lesson-planner and slide-deck features that were removed from this tool.

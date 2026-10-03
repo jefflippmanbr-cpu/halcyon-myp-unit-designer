@@ -7,18 +7,16 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev": "concurrently -k -n API,WEB -c yellow,cyan \"npm:server\" \"npm:client\"",
-    "server": "node server/index.js",
+    "dev": "concurrently -k -n API,WEB -c yellow,cyan \"npm:api\" \"npm:client\"",
+    "api": "node -e \"require('fs').mkdirSync('dist',{recursive:true})\" && wrangler dev --port 8787",
     "client": "vite",
     "build": "vite build",
-    "start": "node server/index.js",
-    "cf:dev": "npm run build && wrangler dev",
     "cf:deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {
-    "cors": "^2.8.5",
-    "dotenv": "^16.4.5",
-    "express": "^4.19.2",
+    "dompurify": "^3.4.16",
+    "mammoth": "^1.13.0",
+    "marked": "^18.0.14",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

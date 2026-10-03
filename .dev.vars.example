@@ -1,0 +1,7 @@
+# Copy to .dev.vars for local development (`npm run dev`). .dev.vars is gitignored.
+# Production values are set with `npx wrangler secret put <NAME>` and never live in a file.
+ANTHROPIC_API_KEY=sk-ant-your-key-here
+# Leave empty to skip the login screen locally.
+APP_PASSWORD=
+# Any long random string, e.g. from: openssl rand -hex 32
+SESSION_SECRET=
