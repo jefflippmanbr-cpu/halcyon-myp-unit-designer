@@ -20,7 +20,7 @@ const APP_PASSWORD = process.env.APP_PASSWORD;
 // Signing secret for session tokens. Generated per-boot if unset, which is fine but
 // means a restart logs everyone out — set it in the environment to avoid that.
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString("hex");
-const SESSION_HOURS = Number(process.env.SESSION_HOURS || 12);
+const SESSION_HOURS = Number(process.env.SESSION_HOURS || 168);
 
 // Compare without leaking length/content through timing.
 function safeEqual(a, b) {

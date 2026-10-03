@@ -402,10 +402,27 @@ ${mdToHtmlStr(content)}</body></html>`;
 
 // ─── Shared UI atoms ───────────────────────────────────────────────────────────
 
-function Dots() {
+// The bouncing dots alone are fine for the ~3s a normal coaching turn takes, but the final
+// unit-plan compile runs about a minute (measured: ~59s, ~25s of it silent thinking). With
+// nothing but dots, a teacher reasonably assumes it has hung and refreshes — losing the
+// request. So a wait that is expected to be long, or has simply gone long, says so and shows
+// a running timer. The bar is indeterminate on purpose: we can't know real progress, and a
+// fake percentage would be a lie.
+function Dots({note, elapsed}) {
   return (
-    <div style={{display:"flex",gap:"5px",padding:"12px 16px",background:H.white,borderRadius:"14px 14px 14px 4px",border:`1px solid ${H.greyLight}`,alignSelf:"flex-start",boxShadow:`0 1px 5px rgba(27,58,92,.06)`}}>
-      {[0,180,360].map(d=><div key={d} style={{width:"7px",height:"7px",borderRadius:"50%",background:H.teal,animation:"db 1.2s ease-in-out infinite",animationDelay:`${d}ms`}}/>)}
+    <div style={{display:"flex",flexDirection:"column",gap:note?"9px":0,padding:"12px 16px",background:H.white,borderRadius:"14px 14px 14px 4px",border:`1px solid ${H.greyLight}`,alignSelf:"flex-start",boxShadow:`0 1px 5px rgba(27,58,92,.06)`,maxWidth:"min(380px, 74%)"}}>
+      <div style={{display:"flex",gap:"5px"}}>
+        {[0,180,360].map(d=><div key={d} style={{width:"7px",height:"7px",borderRadius:"50%",background:H.teal,animation:"db 1.2s ease-in-out infinite",animationDelay:`${d}ms`}}/>)}
+      </div>
+      {note&&(
+        <>
+          <div style={{fontSize:"12.5px",lineHeight:1.5,color:H.navyDark}}>{note}</div>
+          <div style={{position:"relative",height:"3px",borderRadius:"2px",background:H.greyLight,overflow:"hidden"}}>
+            <div style={{position:"absolute",top:0,height:"100%",width:"38%",borderRadius:"2px",background:H.teal,animation:"hslide 1.6s ease-in-out infinite"}}/>
+          </div>
+          <div style={{fontSize:"10.5px",color:H.greyMid}}>{elapsed}s elapsed · please keep this tab open</div>
+        </>
+      )}
     </div>
   );
 }
@@ -489,7 +506,7 @@ function FrameworkBadges({frameworks}) {
     </div>
   );
 }
-function MessageList({msgs, loading, scrollRef}) {
+function MessageList({msgs, loading, scrollRef, waitNote, elapsed}) {
   return (
     <div ref={scrollRef} style={{flex:1,overflowY:"auto",padding:"18px 20px",display:"flex",flexDirection:"column",gap:"12px"}}>
       {msgs.map((msg,idx)=>(
@@ -500,7 +517,7 @@ function MessageList({msgs, loading, scrollRef}) {
           </div>
         </div>
       ))}
-      {loading&&<div style={{display:"flex",alignItems:"flex-end",gap:"8px"}}><BotAvatar/><Dots/></div>}
+      {loading&&<div style={{display:"flex",alignItems:"flex-end",gap:"8px"}}><BotAvatar/><Dots note={waitNote} elapsed={elapsed}/></div>}
     </div>
   );
 }
@@ -690,6 +707,24 @@ export default function App() {
 
   useEffect(()=>{if(uScroll.current)uScroll.current.scrollTop=uScroll.current.scrollHeight;},[uMsgs,uLoading]);
 
+  // Seconds the current request has been in flight. Only drives the wait bubble.
+  const [uElapsed, setUElapsed] = useState(0);
+  useEffect(()=>{
+    if (!uLoading) { setUElapsed(0); return; }
+    const t0 = Date.now();
+    const id = setInterval(()=>setUElapsed(Math.floor((Date.now()-t0)/1000)), 1000);
+    return ()=>clearInterval(id);
+  },[uLoading]);
+
+  // The final compile is the one request a refresh would genuinely lose. Ask before leaving
+  // only while a request is in flight; browsers show their own generic wording.
+  useEffect(()=>{
+    if (!uLoading) return;
+    const warn = (e)=>{ e.preventDefault(); e.returnValue=""; };
+    window.addEventListener("beforeunload", warn);
+    return ()=>window.removeEventListener("beforeunload", warn);
+  },[uLoading]);
+
   const grow = (ref) => { const t=ref.current; if(t){t.style.height="auto";t.style.height=Math.min(t.scrollHeight,110)+"px";} };
 
   // 16k is the practical ceiling for non-streaming requests before HTTP timeouts bite.
@@ -773,12 +808,22 @@ export default function App() {
   // counter. Reaching step 14 only means the coach asked "ready to compile?".
   const uPlanReady = findCompiledPlan(uMsgs) !== null;
 
+  // Normal coaching turns take ~3s and need no explanation. The compile (step 14, no plan yet)
+  // takes about a minute, so say so up front; any other turn that runs long gets a gentler note.
+  const uCompiling = uLoading && uStep >= 14 && !uPlanReady;
+  const uWaitNote = uCompiling
+    ? (uElapsed < 45
+        ? "Writing your full unit plan. This usually takes about a minute."
+        : "Nearly there. Long plans can take a little longer.")
+    : (uLoading && uElapsed >= 12 ? "Still working. This one is taking a bit longer than usual." : null);
+
   if (authed === null) return <div style={{height:"100vh",background:H.cream}}/>;   // brief auth check
   if (authed === false) return <LoginScreen onAuthed={()=>setAuthed(true)}/>;
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100vh",fontFamily:"'Montserrat',-apple-system,BlinkMacSystemFont,sans-serif",background:H.cream,color:H.navyDark,overflow:"hidden"}}>
       <style>{`
+        @keyframes hslide{0%{left:-40%}100%{left:102%}}
         @keyframes db{0%,80%,100%{transform:translateY(0);opacity:.3}40%{transform:translateY(-7px);opacity:1}}
         .hbtn:hover{background:${H.navyMid}!important}
         textarea:focus{outline:none!important;border-color:${H.teal}!important}
@@ -895,7 +940,7 @@ export default function App() {
                       ⚠ This unit is too large to auto-save in your browser — download the plan when it's ready, and avoid closing this tab.
                     </div>
                   )}
-                  <MessageList msgs={uMsgs.filter(m=>!m.hidden)} loading={uLoading} scrollRef={uScroll}/>
+                  <MessageList msgs={uMsgs.filter(m=>!m.hidden)} loading={uLoading} scrollRef={uScroll} waitNote={uWaitNote} elapsed={uElapsed}/>
                   {uPlanReady&&(
                     <div style={{padding:"7px 18px",background:H.goldPale,borderTop:`1px solid ${H.gold}30`,display:"flex",alignItems:"center",gap:"12px",flexShrink:0}}>
                       <span style={{fontSize:"11.5px",color:H.navyMid,fontWeight:600}}>Unit plan complete</span>

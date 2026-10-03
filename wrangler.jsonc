@@ -24,6 +24,6 @@
     // Non-secret config. Secrets (ANTHROPIC_API_KEY, APP_PASSWORD, SESSION_SECRET)
     // are set with `wrangler secret put` and never live in this file.
     "ANTHROPIC_MODEL": "claude-sonnet-5",
-    "SESSION_HOURS": "12"
+    "SESSION_HOURS": "168"
   }
 }

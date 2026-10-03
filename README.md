@@ -99,7 +99,7 @@ Leave `APP_PASSWORD` empty in `.env` to skip the login screen during development
 | `ANTHROPIC_API_KEY` | **Required.** Stays server-side; never sent to the browser. |
 | `APP_PASSWORD` | Shared staff password. Unset = no login required. |
 | `SESSION_SECRET` | Signs session tokens. Set in production, or restarts log everyone out. |
-| `SESSION_HOURS` | Login validity, default 12. |
+| `SESSION_HOURS` | Login validity in hours, default 168 (7 days). |
 | `ANTHROPIC_MODEL` | Default `claude-sonnet-5`. |
 | `API_PORT` | Local Node dev only. Not used by the Cloudflare Worker. |
 

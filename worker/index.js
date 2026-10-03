@@ -42,7 +42,7 @@ function safeEqual(a, b) {
   return crypto.subtle.timingSafeEqual(ab, bb);
 }
 
-const sessionHours = (env) => Number(env.SESSION_HOURS || 12);
+const sessionHours = (env) => Number(env.SESSION_HOURS || 168);
 
 async function issueToken(env) {
   const expiry = Date.now() + sessionHours(env) * 3600_000;
