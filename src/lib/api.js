@@ -65,6 +65,21 @@ export async function streamMessage({ system, messages, maxTokens = 16000, schem
   return { text, stopReason };
 }
 
+// Asks the server to check links (≤10 per call). Returns {url: {status, fallback}}. If the
+// check itself fails, links are treated as fine rather than stripped: a failed check is
+// not evidence a link is dead.
+export async function checkLinks(urls) {
+  try {
+    const r = await fetch("/api/check-links", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ urls }),
+    });
+    if (!r.ok) return {};
+    return (await r.json()).results || {};
+  } catch { return {}; }
+}
+
 // ─── Saved plans (private links) ───────────────────────────────────────────────
 export async function savePlan({ id, editKey, title, markdown }) {
   const r = await fetch(id ? `/api/plans/${id}` : "/api/plans", {

@@ -4,6 +4,7 @@
 //  · /api/auth/*      shared-password login → HMAC-signed session token
 //  · /api/messages    proxy to the Anthropic Messages API (streamed), session required
 //  · /api/plans/*     saved plans behind private links, stored in the PLANS KV namespace
+//  · /api/check-links verifies resource links before teachers see them, session required
 // Everything else falls through to the built React app; unknown paths (e.g. /p/<id>)
 // get index.html so the client can route them — see wrangler.jsonc.
 //
@@ -225,6 +226,97 @@ async function handleDeletePlan(request, env, id) {
   return json({ deleted: true });
 }
 
+// ─── Link checking ─────────────────────────────────────────────────────────────
+// Resources come with clickable links, but a model can produce a plausible URL that 404s.
+// Every link is checked here before a teacher sees it. The client keeps working links,
+// swaps dead ones for the site's home page, and drops links whose site doesn't answer.
+// Only public http(s) hosts are fetched (no IPs, localhost or internal names), so this
+// can't be pointed at anything private.
+const MAX_LINKS = 10;               // Workers allow 50 subrequests; a link may take up to 4
+const LINK_TIMEOUT_MS = 7000;
+const BLOCKED = new Set([401, 403, 405, 406, 429, 999]);   // bot walls: the site exists
+const SOFT_404 = /<title[^>]*>[^<]*(404|not found|page not found|doesn.t exist|no longer available)[^<]*<\/title>/i;
+// Bot-check interstitials also arrive as 200s; they say nothing about whether the page exists.
+const CHALLENGE = /<title[^>]*>[^<]*(client challenge|just a moment|attention required|access denied|are you a robot|security check|captcha|verify you are human)[^<]*<\/title>/i;
+
+function publicUrl(raw) {
+  let u;
+  try { u = new URL(raw); } catch { return null; }
+  if (u.protocol !== "https:" && u.protocol !== "http:") return null;
+  const h = u.hostname.toLowerCase();
+  if (!h.includes(".") || /^[\d.]+$/.test(h) || h.includes(":") || h === "localhost" ||
+      /\.(local|internal|localhost|test|example|invalid)$/.test(h)) return null;
+  return u;
+}
+
+// The runtime reports a DNS failure and an unparseable response the same way, so when a
+// fetch errors, ask DNS-over-HTTPS whether the host exists at all.
+async function hostExists(hostname) {
+  try {
+    const r = await fetch(`https://dns.google/resolve?name=${encodeURIComponent(hostname)}&type=A`, {
+      headers: { Accept: "application/dns-json" }, signal: AbortSignal.timeout(4000),
+    });
+    const d = await r.json();
+    return d.Status === 0 && Array.isArray(d.Answer) && d.Answer.length > 0;
+  } catch { return true; }   // can't tell — don't condemn the link on a failed lookup
+}
+
+async function probe(url) {
+  try {
+    const r = await fetch(url, {
+      redirect: "follow",
+      signal: AbortSignal.timeout(LINK_TIMEOUT_MS),
+      headers: {
+        "User-Agent": "Mozilla/5.0 (compatible; HalcyonLinkCheck/1.0; +https://halcyonschool.com)",
+        "Accept": "text/html,application/xhtml+xml,application/pdf;q=0.9,*/*;q=0.8",
+      },
+    });
+    if (BLOCKED.has(r.status)) { r.body?.cancel(); return "blocked"; }
+    if (!r.ok) { r.body?.cancel(); return "dead"; }
+    if ((r.headers.get("content-type") || "").includes("text/html")) {
+      // Some sites answer 200 with a "page not found" page. The <title> gives it away.
+      const reader = r.body.getReader(); let head = ""; const dec = new TextDecoder();
+      while (head.length < 40000) { const { done, value } = await reader.read(); if (done) break; head += dec.decode(value, { stream: true }); if (/<\/title>/i.test(head)) break; }
+      reader.cancel();
+      if (SOFT_404.test(head)) return "dead";
+      if (CHALLENGE.test(head)) return "blocked";
+    } else r.body?.cancel();
+    return "ok";
+  } catch (e) {
+    // The runtime itself occasionally can't handle a site's response ("internal error")
+    // though the site is fine in a browser — that's "can't tell", not "dead". DNS
+    // failures, refused connections and timeouts are dead.
+    if (/internal error/i.test(e.message)) return (await hostExists(new URL(url).hostname)) ? "blocked" : "dead";
+    return "dead";
+  }
+}
+
+async function handleCheckLinks(request, env) {
+  const denied = await requireSession(request, env);
+  if (denied) return denied;
+  let body;
+  try { body = await request.json(); } catch { return errorJson("Invalid request body.", 400); }
+  const urls = [...new Set((body?.urls || []).filter(u => typeof u === "string"))].slice(0, MAX_LINKS);
+  const results = {};
+  const originCache = new Map();
+  await Promise.all(urls.map(async (raw) => {
+    const u = publicUrl(raw);
+    if (!u) { results[raw] = { status: "dead", fallback: null }; return; }
+    const isHome = u.pathname === "/" && !u.search;
+    let status = await probe(u.href);
+    // Slow sites time out when many links are checked at once; one retry avoids
+    // condemning a working link for being slow.
+    if (status === "dead") status = await probe(u.href);
+    // A bot wall on the home page still proves the site exists; on a deep link it proves
+    // nothing about the page, so fall back to the home page rather than trust a guess.
+    if (status === "ok" || (status === "blocked" && isHome)) { results[raw] = { status: "ok" }; return; }
+    if (!originCache.has(u.origin)) originCache.set(u.origin, probe(u.origin + "/"));
+    const o = await originCache.get(u.origin);
+    results[raw] = { status, fallback: o === "dead" ? null : u.origin + "/" };
+  }));
+  return json({ results });
+}
+
 export default {
   async fetch(request, env) {
     const { pathname } = new URL(request.url);
@@ -234,6 +326,7 @@ export default {
       if (pathname === "/api/auth/login"  && request.method === "POST") return handleLogin(request, env);
       if (pathname === "/api/messages"    && request.method === "POST") return handleMessages(request, env);
       if (pathname === "/api/plans"       && request.method === "POST") return handleCreatePlan(request, env);
+      if (pathname === "/api/check-links" && request.method === "POST") return handleCheckLinks(request, env);
       const planMatch = pathname.match(/^\/api\/plans\/([^/]+)$/);
       if (planMatch) {
         const id = decodeURIComponent(planMatch[1]);

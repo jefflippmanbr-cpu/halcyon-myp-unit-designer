@@ -6,9 +6,10 @@ import { Layers, Send, Refresh } from "./Icons.jsx";
 
 const Avatar = () => <div className="avatar"><Layers size={13} style={{ color: "var(--green)" }} /></div>;
 
-function Md({ text, streaming }) {
+function Md({ text, streaming, pending }) {
   const html = useMemo(() => mdToSafeHtml(text), [text]);
-  return <div className={`md${streaming ? " caret" : ""}`} dangerouslySetInnerHTML={{ __html: html }} />;
+  return <div className={`md${streaming ? " caret" : ""}${pending ? " links-pending" : ""}`} dangerouslySetInnerHTML={{ __html: html }}
+    title={pending ? "Checking links…" : undefined} />;
 }
 
 // Pills naming the framework element doing real work in a reply. Tap one to see why —
@@ -75,7 +76,7 @@ export function MessageList({ msgs, streamText, loading, waitNote, elapsed, erro
           <div key={i}>
             <div className="msg coach">
               <Avatar />
-              <div className="bubble"><Md text={m.content} /><Badges frameworks={m.frameworks} /></div>
+              <div className="bubble"><Md text={m.content} pending={m.linksPending} /><Badges frameworks={m.frameworks} /></div>
             </div>
             <Captured captured={m.captured} onOpen={onOpenRecord} />
           </div>

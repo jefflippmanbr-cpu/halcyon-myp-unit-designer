@@ -22,6 +22,16 @@ with anyone, plus Word and PDF exports.
 - **The plan** is compiled in a separate streamed call from the record (authoritative) plus the
   conversation (for context). The app then checks that named items, such as formatives, Explorer
   Moments and sites, made it in.
+- **Assessment.** The coach asks which criteria the summative assesses (recommending a set if the
+  teacher is unsure) and previews a rubric. The plan includes a task-specific rubric for each
+  chosen criterion. Criterion names and strands for all eight subject groups, plus
+  interdisciplinary units and the Personal Project, are in `src/prompts.js`. They were checked in
+  October 2026 against the IB's subject briefs and schools' published criteria, and include the
+  current Language Acquisition (2020) and Arts guides. The strands are brief paraphrases; the
+  official descriptors stay in the subject guides.
+- **Resource links** are checked before a teacher sees them (`/api/check-links`). Working links are
+  kept; dead or unverifiable deep links fall back to the site's home page, marked "(home page)";
+  links to sites that don't answer are removed.
 - **Private links** (`/p/<id>`) are stored in Cloudflare KV. Creating one needs the staff
   password; viewing one needs only the link. The creating browser holds an edit key that lets it
   update the link on rebuild, or delete it.

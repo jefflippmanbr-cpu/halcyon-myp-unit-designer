@@ -34,3 +34,11 @@ export function recordAsText(record) {
     `### Step ${g.n} — ${g.label}\n` + g.entries.map(e => `- **${e.label}:** ${e.text}`).join("\n")
   ).join("\n\n");
 }
+
+// Steps the conversation has moved past with nothing recorded — usually a decision the
+// coach acknowledged but forgot to capture. Fed back to the coach as a nudge. Step 14 has
+// no record of its own, and 13 is only "past" once the plan stage is reached.
+export function recordGaps(record, currentStep) {
+  const have = new Set(record.map(e => e.step));
+  return STEPS.filter(s => s.n < currentStep && s.n < 14 && !have.has(s.n)).map(s => `${s.n} ${s.label}`);
+}

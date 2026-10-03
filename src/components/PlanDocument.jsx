@@ -27,13 +27,17 @@ function Blocks({ blocks }) {
   ) : <Html key={i} html={b.html} />);
 }
 
+// In a rubric band, each strand — "(i) … ; (ii) …" — goes on its own line.
+const splitStrands = (blocks) => blocks.map(b => b.kind === "html"
+  ? { ...b, html: b.html.replace(/;\s*(\((?:i|ii|iii|iv|v|vi)\))/g, "<br>$1") } : b);
+
 function Cards({ cards, variant }) {
   return (
-    <div className="cards">
+    <div className={`cards${variant ? " cards-" + variant : ""}`}>
       {cards.map((c, i) => (
         <div key={i} className={`card${variant ? " " + variant : ""}`}>
           <h3><span>{c.title}</span>{c.week && <span className="wk">{/^\d/.test(c.week) ? `Week ${c.week}` : c.week}</span>}</h3>
-          <Blocks blocks={c.blocks} />
+          <Blocks blocks={variant === "rubric" ? splitStrands(c.blocks) : c.blocks} />
         </div>
       ))}
     </div>
@@ -124,6 +128,7 @@ function Section({ sec }) {
   else if (s.includes("invitation")) body = <div className="invitation"><Blocks blocks={sec.intro} /></div>;
   else if (s.includes("week")) body = <><Blocks blocks={sec.intro} /><Timeline cards={sec.cards} /></>;
   else if (s.includes("explorer")) body = <><Blocks blocks={sec.intro} /><Cards cards={sec.cards} variant="explorer" /></>;
+  else if (s.includes("rubric")) body = <><Blocks blocks={sec.intro} /><Cards cards={sec.cards} variant="rubric" /></>;
   else if (s.includes("alignment")) body = <Alignment sec={sec} />;
   else {
     if (s.includes("checklist")) cls = "checklist";

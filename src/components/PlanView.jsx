@@ -6,15 +6,17 @@ import { ArrowLeft, Link, Download, Printer, Refresh, Check, External } from "./
 
 // Which of the expected sections have started arriving in the stream — real progress,
 // not a guess, because the compile writes them in a fixed order.
-function BuildProgress({ text, elapsed }) {
+function BuildProgress({ text, elapsed, checkingLinks }) {
   const seen = PLAN_SECTIONS.map(s => text.toLowerCase().includes(`## ${s.toLowerCase()}`));
   const nowIdx = seen.lastIndexOf(true);
   const thinking = !text;
   return (
     <div className="build-progress no-print" aria-live="polite">
-      <h2>{thinking ? "Planning your unit…" : "Writing your unit plan…"}</h2>
+      <h2>{checkingLinks ? "Checking resource links…" : thinking ? "Planning your unit…" : "Writing your unit plan…"}</h2>
       <p>
-        {thinking
+        {checkingLinks
+          ? "Opening every link in the plan to make sure it works. Any dead ones are swapped for the site's home page."
+          : thinking
           ? "Reading everything you settled and working out the week-by-week shape. This takes about a minute in all."
           : "Sections appear below as they're written. Please keep this tab open."} <span style={{ color: "var(--faint)" }}>· {elapsed}s</span>
       </p>
@@ -30,7 +32,7 @@ function BuildProgress({ text, elapsed }) {
   );
 }
 
-export function PlanView({ plan, record, building, buildText, buildError, elapsed, saveState, onBack, onRebuild, onSave, notify }) {
+export function PlanView({ plan, record, building, buildText, buildError, checkingLinks, elapsed, saveState, onBack, onRebuild, onSave, notify }) {
   const markdown = building ? buildText : plan?.markdown || "";
   const title = useMemo(() => planTitle(markdown), [markdown]);
   const missing = useMemo(() => (!building && plan ? missingFromPlan(record, plan.markdown) : []), [building, plan, record]);
@@ -61,7 +63,7 @@ export function PlanView({ plan, record, building, buildText, buildError, elapse
         </>}
       </div>
 
-      {building && <BuildProgress text={buildText} elapsed={elapsed} />}
+      {building && <BuildProgress text={buildText} elapsed={elapsed} checkingLinks={checkingLinks} />}
       {buildError && !building && (
         <div className="notice notice-red"><div className="t"><b>The plan didn't finish.</b> {buildError}</div>
           <button className="btn btn-sm btn-ghost" onClick={onRebuild}><Refresh size={13} />Try again</button></div>

@@ -3,9 +3,10 @@ import { COACH_PROMPT, COMPILE_PROMPT, COACH_SCHEMA, stepLabel, recordContext } 
 import { FRAMEWORKS } from "./theme.js";
 import { streamMessage, getToken, setToken, AuthError, savePlan, deletePlan, planUrl } from "./lib/api.js";
 import { parseStructured, partialMessage, looksCorrupted } from "./lib/parse.js";
-import { mergeCaptured, recordAsText } from "./lib/record.js";
+import { mergeCaptured, recordAsText, recordGaps } from "./lib/record.js";
 import { processFile, buildFirstMessage } from "./lib/files.js";
 import { planTitle } from "./lib/plan.js";
+import { findUrls, verifyLinks } from "./lib/links.js";
 import { saveDraft, loadDraft, clearDraft, loadLibrary, rememberPlan, forgetPlan, timeAgo } from "./lib/storage.js";
 import { MessageList, Composer } from "./components/Chat.jsx";
 import { Rail } from "./components/Rail.jsx";
@@ -65,6 +66,7 @@ export default function App() {
   const [building, setBuilding] = useState(false);
   const [buildText, setBuildText] = useState("");
   const [buildError, setBuildError] = useState(null);
+  const [checkingLinks, setCheckingLinks] = useState(false);
   const [saveState, setSaveState] = useState("idle");
 
   const [restored, setRestored] = useState(null);
@@ -81,6 +83,13 @@ export default function App() {
 
   const notify = (m) => { setToast(m); clearTimeout(notify.t); notify.t = setTimeout(() => setToast(null), 3200); };
 
+  // Links in a reply are shown disabled until checked, then swapped for verified ones.
+  const verifyMessageLinks = (msg) => {
+    verifyLinks(msg.content).then(({ md }) => {
+      setMsgs(ms => ms.map(m => m === msg ? { ...m, content: md, linksPending: false } : m));
+    });
+  };
+
   // ── Draft persistence ──
   useEffect(() => {
     const d = loadDraft();
@@ -89,6 +98,8 @@ export default function App() {
       setMode(d.mode ?? null); setInput(d.input ?? ""); setFile(d.file ?? null);
       setRecord(d.record ?? []); setPlan(d.plan ?? null);
       setRestored({ savedAt: d.savedAt });
+      // A reload mid-check would otherwise leave those links disabled for good.
+      d.msgs.filter(m => m.linksPending).forEach(verifyMessageLinks);
     }
     hydrated.current = true;
   }, []);
@@ -129,6 +140,13 @@ export default function App() {
     // format-inconsistent, and the model can start narrating its own formatting decisions
     // into the visible message ("let's answer properly…") instead of just answering.
     const apiMsgs = history.map(m => ({ role: m.role, content: m.role === "assistant" && m.raw ? m.raw : m.content }));
+    // A gap reminder at the end of the system prompt was ignored in testing; attached to
+    // the teacher's latest message (never shown or saved) it gets acted on.
+    const gaps = recordGaps(record, step);
+    const last = apiMsgs[apiMsgs.length - 1];
+    if (gaps.length && last?.role === "user" && typeof last.content === "string") {
+      apiMsgs[apiMsgs.length - 1] = { ...last, content: `${last.content}\n\n[Note from the app, not the teacher: the unit record has nothing for ${gaps.join(" · ")}. Capture whatever the teacher settled for those steps, in full, in this turn's "captured" — then reply to the teacher as normal.]` };
+    }
     const call = () => streamMessage({
       system: COACH_PROMPT + recordContext(recordAsText(record)), messages: apiMsgs, schema: COACH_SCHEMA,
       onText: (t) => { const pm = partialMessage(t); if (pm) setStreamText(pm); },
@@ -147,7 +165,10 @@ export default function App() {
         } catch { /* keep the first answer */ }
       }
       const turn = history.filter(m => m.role === "assistant").length + 1;
-      setMsgs([...history, { role: "assistant", content: parsed.message, frameworks: parsed.frameworks, captured: parsed.captured, raw: text }]);
+      const reply = { role: "assistant", content: parsed.message, frameworks: parsed.frameworks, captured: parsed.captured, raw: text };
+      if (findUrls(reply.content).length) reply.linksPending = true;
+      setMsgs([...history, reply]);
+      if (reply.linksPending) verifyMessageLinks(reply);
       setRecord(r => mergeCaptured(r, parsed.captured, turn));
       setStep(parsed.step); setMaxStep(m => Math.max(m, parsed.step));
     } catch (e) {
@@ -226,8 +247,11 @@ export default function App() {
         // Re-rendering the whole document on every token is wasteful; ~8 frames a second reads as live.
         onText: (t) => { const now = Date.now(); if (now - last > 120) { last = now; setBuildText(t); } },
       });
-      const md = cleanPlan(text);
+      let md = cleanPlan(text);
       if (!/^#\s/m.test(md)) throw new Error("The plan came back in an unexpected format.");
+      setBuildText(md); setCheckingLinks(true);
+      md = (await verifyLinks(md)).md;
+      setCheckingLinks(false);
       const next = { ...(plan || {}), markdown: md, builtAt: Date.now() };
       setPlan(next);
       if (stopReason === "max_tokens") setBuildError("It ran out of room before the end, so the last sections may be missing. Try Rebuild.");
@@ -236,7 +260,7 @@ export default function App() {
       if (e instanceof AuthError) setAuthed(false);
       setBuildError(e.message || "Something went wrong while writing the plan.");
     } finally {
-      setBuilding(false); setBuildText("");
+      setBuilding(false); setBuildText(""); setCheckingLinks(false);
     }
   };
 
@@ -321,7 +345,7 @@ export default function App() {
             <UploadScreen file={file} busy={fileBusy} error={fileErr} onFile={onFile} onClear={() => setFile(null)}
               onGo={() => startUnit("transform", file)} onSkip={() => startUnit("transform", null)} />
           ) : view === "plan" ? (
-            <PlanView plan={plan} record={record} building={building} buildText={buildText} buildError={buildError}
+            <PlanView plan={plan} record={record} building={building} buildText={buildText} buildError={buildError} checkingLinks={checkingLinks}
               elapsed={elapsed} saveState={saveState} onBack={() => setView("coach")} onRebuild={buildPlan}
               onSave={() => plan && savePlanLink(plan)} notify={notify} />
           ) : (

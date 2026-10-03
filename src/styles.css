@@ -135,7 +135,9 @@ button { font-family: inherit; }
 .md li { margin: 4px 0; }
 .md ul li::marker { color: var(--green); }
 .md ol li::marker { color: var(--green); font-weight: 700; }
-.md a { color: var(--green); }
+.md a { color: var(--green); text-underline-offset: 2px; }
+.md a[target=_blank]::after { content: " ↗"; font-size: .85em; }
+.md.links-pending a { pointer-events: none; opacity: .55; text-decoration-style: dotted; }
 .md hr { border: 0; border-top: 1px solid var(--line); margin: 10px 0; }
 .md blockquote { margin: 8px 0; padding: 4px 12px; border-left: 3px solid var(--gold); color: var(--navy-mid); }
 .md table { border-collapse: collapse; font-size: 12.5px; margin: 8px 0; }
@@ -304,6 +306,20 @@ button { font-family: inherit; }
 .card .md ul { list-style: none; padding: 0; margin: 4px 0 0; }
 .card .md li { margin: 6px 0; font-size: 13px; line-height: 1.55; }
 .card .md li strong:first-child { display: block; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--green); font-weight: 700; }
+.cards-rubric { grid-template-columns: minmax(0, 1fr); }
+.card.rubric { background: var(--paper); padding: 16px 18px; }
+.card.rubric h3 { font-family: var(--serif); font-weight: 400; font-size: 17px; }
+.card.rubric .field { background: transparent; border: 0; padding: 0; }
+.card.rubric .fields { margin: 0 0 10px; }
+.card.rubric .md table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; margin: 4px 0 0; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.card.rubric .md th { background: var(--navy); color: #fff; font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; font-weight: 700; padding: 8px 12px; text-align: left; border: 0; }
+.card.rubric .md td { padding: 9px 12px; border: 0; border-top: 1px solid var(--line); vertical-align: top; line-height: 1.55; }
+.card.rubric .md td:first-child { width: 64px; font-weight: 700; color: var(--navy); white-space: nowrap; text-align: center; }
+.card.rubric .md tr:nth-child(2) td { background: #FBF8F2; }
+.card.rubric .md tr:nth-child(3) td { background: #F6F2E8; }
+.card.rubric .md tr:nth-child(4) td { background: #EEF4EF; }
+.card.rubric .md tr:nth-child(5) td { background: var(--green-pale); }
+.card.rubric .md tr:nth-child(5) td:first-child { color: var(--green); }
 .card.explorer { background: var(--clay-pale); border-color: rgba(180,83,42,.25); }
 .card.explorer::before { content: "Explorer Moment"; display: block; font-size: 9.5px; letter-spacing: 1.4px; text-transform: uppercase; font-weight: 700; color: var(--clay); margin-bottom: 5px; }
 .card.explorer .md li strong:first-child { color: var(--clay); }
@@ -425,5 +441,6 @@ button { font-family: inherit; }
   .doc-hero { -webkit-print-color-adjust: exact; print-color-adjust: exact; border-radius: 10px; }
   .sec { box-shadow: none; break-inside: auto; border-color: #ddd; }
   .card, .tl-item, .field, .resources .md ol li { break-inside: avoid; }
+  .card.rubric .md th, .card.rubric .md td { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .field.soi, .strength, .align-tile, .card.explorer, .tl-num, .resources .md ol li::before { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
