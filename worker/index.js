@@ -103,8 +103,8 @@ async function handleMessages(request, env) {
     max_tokens: Math.min(Number(max_tokens) || 6144, 32000),
     // Adaptive thinking for structured-output calls: with a constrained JSON schema and no
     // scratch space the model can narrate its formatting deliberation into the visible
-    // message. The plan compile asks for it explicitly (`think`) because it has to hold the
-    // whole unit together. Other plain calls stay cheaper without it.
+    // message. Plain calls (including the plan compile) run without it: for the compile it
+    // added a minute of blank screen for no measurable gain. `think` remains available.
     thinking: output_config || think ? { type: "adaptive" } : { type: "disabled" },
     system,
     messages,

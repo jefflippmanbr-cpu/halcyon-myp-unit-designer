@@ -379,6 +379,16 @@ button { font-family: inherit; }
 .shared-top .btn-top { background: transparent; border: 1px solid rgba(255,255,255,.25); color: #fff; }
 .shared-top .btn-top:hover { background: rgba(255,255,255,.08); }
 
+/* ─── Confirmation dialog ─── */
+.modal-scrim { position: fixed; inset: 0; background: rgba(17,19,39,.42); display: grid; place-items: center; z-index: 200; padding: 16px; animation: fade .15s ease-out; }
+.modal { background: var(--paper); border-radius: 16px; box-shadow: var(--shadow-lg); padding: 24px 24px 20px; width: 100%; max-width: 420px; animation: rise .18s ease-out; }
+.modal h2 { font-family: var(--serif); font-weight: 400; font-size: 20px; color: var(--navy); margin: 0 0 8px; }
+.modal p { font-size: 13.5px; color: var(--muted); line-height: 1.6; margin: 0 0 20px; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-danger:hover:not(:disabled) { background: #8a2424; }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+
 /* ─── Toast ─── */
 .toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: var(--navy-dark); color: #fff; font-size: 12.5px; font-weight: 600;
   padding: 10px 16px; border-radius: 10px; box-shadow: var(--shadow-lg); z-index: 100; animation: rise .2s ease-out; }

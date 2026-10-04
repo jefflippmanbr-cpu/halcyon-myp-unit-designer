@@ -14,6 +14,7 @@ import { RecordPanel } from "./components/RecordPanel.jsx";
 import { PlanView } from "./components/PlanView.jsx";
 import { Welcome, UploadScreen, LoginScreen } from "./components/Screens.jsx";
 import { Layers, Notes, Menu, Sparkle, File } from "./components/Icons.jsx";
+import { useConfirm } from "./components/Confirm.jsx";
 
 const textOf = (content) =>
   typeof content === "string" ? content : (content || []).filter(b => b.type === "text").map(b => b.text).join("\n");
@@ -80,6 +81,7 @@ export default function App() {
   const scrollRef = useRef(null);
   const taRef = useRef(null);
   const elapsed = useElapsed(loading || building);
+  const [confirm, confirmDialog] = useConfirm();
 
   const notify = (m) => { setToast(m); clearTimeout(notify.t); notify.t = setTimeout(() => setToast(null), 3200); };
 
@@ -243,7 +245,11 @@ export default function App() {
     try {
       const { text, stopReason } = await streamMessage({
         system: COMPILE_PROMPT, messages: [{ role: "user", content: doc ? [doc, { type: "text", text: prompt }] : prompt }],
-        maxTokens: 32000, think: true,
+        // No extended thinking here, by measurement: on a full 46-entry unit, thinking
+        // first meant 66s of blank screen and 152s in all; without it the plan starts
+        // streaming in ~3s and finishes in ~85s, with the same sections, every record entry
+        // present and comparable depth. The record has already done the hard thinking.
+        maxTokens: 32000,
         // Re-rendering the whole document on every token is wasteful; ~8 frames a second reads as live.
         onText: (t) => { const now = Date.now(); if (now - last > 120) { last = now; setBuildText(t); } },
       });
@@ -269,15 +275,25 @@ export default function App() {
     catch { notify(planUrl(p.id)); }
   };
   const removeLink = async (p) => {
-    if (!window.confirm(`Delete the link for "${p.title || "this plan"}"? Anyone you've shared it with will no longer be able to open it.`)) return;
+    if (!(await confirm({
+      title: "Delete this link?",
+      body: `"${p.title || "This plan"}" will no longer open for anyone you've shared it with. This can't be undone.`,
+      action: "Delete link", danger: true,
+    }))) return;
     try { await deletePlan(p); } catch (e) { notify(e.message); return; }
     setLibrary(forgetPlan(p.id));
     if (plan?.id === p.id) setPlan(pl => ({ ...pl, id: null, editKey: null }));
     notify("Link deleted.");
   };
 
-  const resetUnit = () => {
-    if (msgs.length > 2 && !window.confirm("Start a new unit? This clears the current conversation. Plans you've saved to a link are kept.")) return;
+  const resetUnit = async () => {
+    if (msgs.length > 2 && !(await confirm({
+      title: "Start a new unit?",
+      body: plan?.id
+        ? "This clears the current conversation. Your built plan stays available at its private link, under “Your saved plans”."
+        : "This clears the current conversation and everything in “Unit so far”. You haven't built a plan from it yet.",
+      action: "Start a new unit",
+    }))) return;
     // Starting a new unit is the one place we deliberately discard the saved draft.
     clearDraft(); setRestored(null); setDraftWarning(false); setError(null); setBuildError(null);
     setPhase("welcome"); setView("coach"); setMsgs([]); setInput(""); setStep(0); setMaxStep(0);
@@ -369,7 +385,7 @@ export default function App() {
                 <div className="build-cta">
                   <div className="txt">
                     {plan ? <><b>Your unit plan is built.</b><span className="sub">Made changes since? Rebuild it from your latest decisions — the same link updates.</span></>
-                      : <><b>Ready to build your unit plan?</b><span className="sub">It's written from everything in your unit record ({record.length} item{record.length === 1 ? "" : "s"}) and takes about a minute.</span></>}
+                      : <><b>Ready to build your unit plan?</b><span className="sub">It's written from everything in your unit record ({record.length} item{record.length === 1 ? "" : "s"}) and takes a minute or so — you'll see it appear as it's written.</span></>}
                   </div>
                   {plan && <button className="btn btn-ghost" onClick={() => setView("plan")}>View plan</button>}
                   <button className="btn btn-gold" onClick={buildPlan} disabled={loading || building}>
@@ -390,6 +406,7 @@ export default function App() {
         <div className={`scrim${railOpen || showRecord ? " on" : ""}`} onClick={() => { setRailOpen(false); setRecordOpen(false); }} />
       </div>
       {toast && <div className="toast" role="status">{toast}</div>}
+      {confirmDialog}
     </div>
   );
 }

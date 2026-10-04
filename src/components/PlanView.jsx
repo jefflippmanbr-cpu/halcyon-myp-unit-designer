@@ -17,7 +17,7 @@ function BuildProgress({ text, elapsed, checkingLinks }) {
         {checkingLinks
           ? "Opening every link in the plan to make sure it works. Any dead ones are swapped for the site's home page."
           : thinking
-          ? "Reading everything you settled and working out the week-by-week shape. This takes about a minute in all."
+          ? "Reading everything you settled. The plan will start appearing in a few seconds."
           : "Sections appear below as they're written. Please keep this tab open."} <span style={{ color: "var(--faint)" }}>· {elapsed}s</span>
       </p>
       <div className="bar" />
