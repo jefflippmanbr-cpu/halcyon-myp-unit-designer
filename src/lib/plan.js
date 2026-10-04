@@ -43,7 +43,12 @@ function splitCards(tokens, links) {
     const flush = () => { if (run.length) { out.push({ kind: "html", html: renderTokens(run, links) }); run = []; } };
     for (const t of toks) {
       const f = asFields(t);
-      if (f) { flush(); out.push({ kind: "fields", fields: f }); } else run.push(t);
+      if (f) {
+        flush();
+        // Field lines written as separate paragraphs still belong to one grid.
+        const prev = out[out.length - 1];
+        if (prev?.kind === "fields") prev.fields.push(...f); else out.push({ kind: "fields", fields: f });
+      } else if (t.type !== "space") run.push(t);
     }
     flush();
     return out;
@@ -125,7 +130,7 @@ export const planTitle = (md) => parsePlan(md).title;
 
 // The headings the compile prompt asks for, in order — used to show real build progress.
 export const PLAN_SECTIONS = [
-  "Unit at a Glance", "Project Invitation", "MYP Framework", "ATL Skills", "Summative Assessment", "Assessment Rubric",
+  "Unit at a Glance", "Project Invitation", "Classroom Transformation", "MYP Framework", "ATL Skills", "Summative Assessment", "Assessment Rubric",
   "Week-by-Week Sequence", "Formative Assessments", "Explorer Moments", "Resources",
   "Expert & Community Connections", "Place-Based Learning", "Differentiation",
   "Framework Alignment", "Teacher Preparation Checklist",

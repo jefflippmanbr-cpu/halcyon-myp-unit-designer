@@ -347,6 +347,11 @@ button { font-family: inherit; }
 
 .invitation { background: linear-gradient(135deg, var(--gold-pale), #FFFCF3); border: 1px solid rgba(217,162,0,.3); border-radius: 13px; padding: 18px 22px; }
 .invitation .md { font-family: var(--serif); font-size: 16px !important; line-height: 1.7 !important; color: var(--navy) !important; }
+.transform .fields { grid-template-columns: 1fr; gap: 8px; }
+.transform .field { background: linear-gradient(135deg, var(--green-pale), #F6FBF8); border-color: rgba(26,89,65,.18); }
+.transform .field:first-child { background: var(--green); border-color: var(--green); }
+.transform .field:first-child .k { color: #CFE3D8; }
+.transform .field:first-child .v { color: #fff; font-family: var(--serif); font-size: 17px; line-height: 1.5; }
 .lead .md { font-size: 15.5px !important; color: var(--navy-mid) !important; }
 
 .align-wrap { overflow-x: auto; }

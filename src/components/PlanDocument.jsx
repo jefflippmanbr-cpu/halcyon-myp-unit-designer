@@ -127,6 +127,7 @@ function Section({ sec }) {
   let body, cls = "";
   if (s.includes("glance")) { cls = "lead"; body = <Blocks blocks={sec.intro} />; }
   else if (s.includes("invitation")) body = <div className="invitation"><Blocks blocks={sec.intro} /></div>;
+  else if (s.includes("transformation")) body = <div className="transform"><Blocks blocks={sec.intro} />{sec.cards.length > 0 && <Cards cards={sec.cards} />}</div>;
   else if (s.includes("week")) body = <><Blocks blocks={sec.intro} /><Timeline cards={sec.cards} /></>;
   else if (s.includes("explorer")) body = <><Blocks blocks={sec.intro} /><Cards cards={sec.cards} variant="explorer" /></>;
   else if (s.includes("rubric")) body = <><Blocks blocks={sec.intro} /><Cards cards={sec.cards} variant="rubric" /></>;
