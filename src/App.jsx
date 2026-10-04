@@ -65,6 +65,7 @@ export default function App() {
 
   const [loading, setLoading] = useState(false);
   const [streamText, setStreamText] = useState("");
+  const [webActivity, setWebActivity] = useState(null);   // {name, query} while searching
   const [error, setError] = useState(null);
   const [building, setBuilding] = useState(false);
   const [buildText, setBuildText] = useState("");
@@ -152,24 +153,40 @@ export default function App() {
     if (gaps.length && last?.role === "user" && typeof last.content === "string") {
       apiMsgs[apiMsgs.length - 1] = { ...last, content: `${last.content}\n\n[Note from the app, not the teacher: the unit record has nothing for ${gaps.join(" · ")}. Capture whatever the teacher settled for those steps, in full, in this turn's "captured" — then reply to the teacher as normal.]` };
     }
+    // Web access only where it earns its cost (~25–35p a searched turn, measured) and its
+    // extra ~20s: reading a page the teacher pasted, and the replies that PROPOSE resources
+    // (Step 11) and experts/places/service (Step 12). Those replies are written while the
+    // conversation's last question was Step 10 or 11, which is what `step` holds here.
+    const lastText = typeof last?.content === "string" ? last.content : "";
+    const web = /https?:\/\/\S+/.test(lastText) ? { mode: "read" }
+      : step === 10 || step === 11 ? { mode: "research" } : null;
     const call = () => streamMessage({
-      system: COACH_PROMPT + recordContext(recordAsText(record)), messages: apiMsgs, schema: COACH_SCHEMA,
+      // [stable, per-turn]: the server caches the stable coach instructions.
+      system: [COACH_PROMPT, recordContext(recordAsText(record))], messages: apiMsgs, schema: COACH_SCHEMA, web,
+      // Past the per-turn cap the model sometimes fires throwaway queries ("x",
+      // "placeholder") that the API rejects; don't show those as if they were real.
+      onTool: (t) => {
+        if (t.name === "web_search" && (t.query.trim().length < 4 || /^(placeholder|test|x+|n\/a)$/i.test(t.query.trim()))) return;
+        setWebActivity(t); setStreamText("");
+      },
       onText: (t) => {
         const pm = partialMessage(t);
-        if (pm) setStreamText({ message: pm, question: partialMessage(t, "question") || "" });
+        if (pm) { setWebActivity(null); setStreamText({ message: pm, question: partialMessage(t, "question") || "" }); }
       },
     });
     try {
-      let { text } = await call();
+      let { text, lastText: finalBlock } = await call();
       let parsed = parseStructured(text, step || 1);
+      // A stray text block before a web search would break the JSON; the final block alone parses.
+      if (parsed.message === text && finalBlock !== text) { text = finalBlock; parsed = parseStructured(text, step || 1); }
       // Corruption is intermittent, so one clean retry reliably recovers it.
       if (looksCorrupted(parsed.message)) {
         console.warn("Corrupted model output detected; retrying once.");
         setStreamText("");
         try {
           const again = await call();
-          const p2 = parseStructured(again.text, step || 1);
-          if (!looksCorrupted(p2.message)) { text = again.text; parsed = p2; }
+          const p2 = parseStructured(again.lastText, step || 1);
+          if (!looksCorrupted(p2.message)) { text = again.lastText; parsed = p2; }
         } catch { /* keep the first answer */ }
       }
       const turn = history.filter(m => m.role === "assistant").length + 1;
@@ -185,7 +202,7 @@ export default function App() {
       // with a Try again button. (An error bubble used to be saved and re-sent to the model.)
       setError(e.message || "Something went wrong.");
     } finally {
-      setLoading(false); setStreamText("");
+      setLoading(false); setStreamText(""); setWebActivity(null);
       setTimeout(() => taRef.current?.focus(), 50);
     }
   };
@@ -321,7 +338,10 @@ export default function App() {
 
   const inChat = phase === "chat";
   const needsReply = inChat && !loading && msgs.length > 0 && msgs[msgs.length - 1].role === "user";
-  const waitNote = loading && elapsed >= 12 ? "Still working — this one is taking a little longer than usual." : null;
+  const waitNote = webActivity
+    ? (webActivity.name === "web_fetch" ? `Reading${webActivity.query ? `: ${webActivity.query.replace(/^https?:\/\/(www\.)?/, "").slice(0, 60)}` : " a web page"}…`
+      : `Searching the web${webActivity.query ? `: “${webActivity.query.slice(0, 80)}”` : ""}…`)
+    : loading && elapsed >= 12 ? "Still working — this one is taking a little longer than usual." : null;
   const canBuild = maxStep >= 14 || !!plan;
   const showRecord = inChat && view === "coach" && recordOpen;
   const latestTurn = msgs.filter(m => m.role === "assistant").length;

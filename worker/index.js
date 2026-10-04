@@ -93,7 +93,7 @@ async function handleMessages(request, env) {
 
   let body;
   try { body = await request.json(); } catch { return errorJson("Invalid request body.", 400); }
-  const { messages, system, max_tokens, output_config, stream, think } = body || {};
+  const { messages, system, max_tokens, output_config, stream, think, web } = body || {};
   if (!Array.isArray(messages) || messages.length === 0) {
     return errorJson("Request body must include a non-empty messages array.", 400);
   }
@@ -106,11 +106,14 @@ async function handleMessages(request, env) {
     // message. Plain calls (including the plan compile) run without it: for the compile it
     // added a minute of blank screen for no measurable gain. `think` remains available.
     thinking: output_config || think ? { type: "adaptive" } : { type: "disabled" },
-    system,
-    messages,
+    system: cachedSystem(system),
+    messages: cachedMessages(messages),
   };
   if (output_config) payload.output_config = output_config;
   if (stream) payload.stream = true;
+  // Web access is configured here, not by the client, so a request can only switch on
+  // these two tools with these limits — never arbitrary tools or unlimited searches.
+  if (web) payload.tools = webTools(web);
 
   // 429/5xx (notably 529 "overloaded") are transient. Absorb them here so a teacher
   // doesn't lose their turn mid-conversation. Waiting on fetch costs no CPU time.
@@ -124,6 +127,7 @@ async function handleMessages(request, env) {
         "Content-Type": "application/json",
         "x-api-key": env.ANTHROPIC_API_KEY,
         "anthropic-version": "2023-06-01",
+        ...(payload.tools?.some(t => t.name === "web_fetch") ? { "anthropic-beta": "web-fetch-2025-09-10" } : {}),
       },
       body: JSON.stringify(payload),
     });
@@ -145,6 +149,59 @@ async function handleMessages(request, env) {
     });
   }
   return json(await upstream.json(), upstream.status);
+}
+
+// ─── Prompt caching ────────────────────────────────────────────────────────────
+// The coach's instructions (~15k tokens) are identical on every turn, and the conversation
+// only grows at the end. Marking cache breakpoints lets Anthropic re-read that prefix from
+// cache at ~10% of the normal input price — on every turn, and on every step within a
+// turn that uses web search (where the whole context is otherwise re-billed per search).
+// `system` may be a string, or an array of strings: [stable part, per-turn part]. Only the
+// first part is cached, so the per-turn unit record can change without breaking the cache.
+const EPHEMERAL = { type: "ephemeral" };
+function cachedSystem(system) {
+  const parts = Array.isArray(system) ? system.filter(x => typeof x === "string" && x) : [system];
+  return parts.map((text, i) => (i === 0 ? { type: "text", text, cache_control: EPHEMERAL } : { type: "text", text }));
+}
+function cachedMessages(messages) {
+  const out = messages.map(m => ({ ...m }));
+  const last = out[out.length - 1];
+  if (!last) return out;
+  const blocks = typeof last.content === "string" ? [{ type: "text", text: last.content }] : [...last.content];
+  const i = blocks.length - 1;
+  if (blocks[i] && typeof blocks[i] === "object") blocks[i] = { ...blocks[i], cache_control: EPHEMERAL };
+  last.content = blocks;
+  return out;
+}
+
+// ─── Web access for the coach ──────────────────────────────────────────────────
+// Server-side tools run by Anthropic: the model searches or reads a page mid-reply.
+// Configured here, not by the client, so a request can only switch on these tools with
+// these caps. Every search result and fetched page is re-read on each further step of
+// the reply, so input grows fast: an uncapped test turn used ~250k input tokens. Hence:
+//   mode "research" — up to 2 searches, no page reading (resources, experts, places)
+//   mode "read"     — read up to 2 pages the teacher pasted, plus 1 search
+const WEB_MODES = {
+  research: { searches: 2, fetches: 0 },
+  read: { searches: 1, fetches: 2 },
+};
+function webTools(web) {
+  const mode = WEB_MODES[web?.mode] || WEB_MODES.research;
+  const tools = [];
+  if (mode.searches) {
+    const search = { type: "web_search_20250305", name: "web_search", max_uses: mode.searches };
+    const loc = web?.location;
+    if (loc && (loc.city || loc.country)) {
+      search.user_location = {
+        type: "approximate",
+        ...(loc.city ? { city: String(loc.city).slice(0, 80) } : {}),
+        ...(/^[A-Za-z]{2}$/.test(loc.country || "") ? { country: loc.country.toUpperCase() } : {}),
+      };
+    }
+    tools.push(search);
+  }
+  if (mode.fetches) tools.push({ type: "web_fetch_20250910", name: "web_fetch", max_uses: mode.fetches, max_content_tokens: 6000 });
+  return tools;
 }
 
 // ─── Saved plans (private links) ───────────────────────────────────────────────

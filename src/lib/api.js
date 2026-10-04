@@ -17,10 +17,15 @@ const authHeaders = () => {
 // onText(textSoFar) fires as text arrives; thinking deltas are skipped (they aren't shown).
 // Streaming matters most for the plan compile (~1 minute), but it also means no request is
 // ever at risk of an idle-connection timeout, so the token ceiling can be generous.
-export async function streamMessage({ system, messages, maxTokens = 16000, schema = null, think = false, onText }) {
+// onTool({name, query}) fires when the model starts a web search or page read, so the UI
+// can say what it's doing. Returns {text, lastText, stopReason}: lastText is the final text
+// block alone — with web tools the model can (rarely) write a short text block before a
+// search, which would otherwise be glued onto the front of the JSON reply.
+export async function streamMessage({ system, messages, maxTokens = 16000, schema = null, think = false, web = null, onText, onTool }) {
   const body = { system, messages, max_tokens: maxTokens, stream: true };
   if (schema) body.output_config = { format: { type: "json_schema", schema } };
   if (think) body.think = true;
+  if (web) body.web = web;
 
   let r;
   try {
@@ -40,6 +45,8 @@ export async function streamMessage({ system, messages, maxTokens = 16000, schem
   const reader = r.body.getReader();
   const decoder = new TextDecoder();
   let buf = "", text = "", stopReason = null;
+  const textBlocks = {}; let lastTextIndex = -1;
+  const tools = {};   // index → {name, json}
   for (;;) {
     let chunk;
     try { chunk = await reader.read(); } catch { throw new Error("The connection dropped partway through the reply. Try again."); }
@@ -52,8 +59,19 @@ export async function streamMessage({ system, messages, maxTokens = 16000, schem
       const data = block.split("\n").filter(l => l.startsWith("data:")).map(l => l.slice(5).trim()).join("");
       if (!data) continue;
       let ev; try { ev = JSON.parse(data); } catch { continue; }
-      if (ev.type === "content_block_delta" && ev.delta?.type === "text_delta") {
-        text += ev.delta.text; onText?.(text);
+      if (ev.type === "content_block_start" && ev.content_block?.type === "server_tool_use") {
+        tools[ev.index] = { name: ev.content_block.name, json: "" };
+      } else if (ev.type === "content_block_delta" && ev.delta?.type === "input_json_delta" && tools[ev.index]) {
+        tools[ev.index].json += ev.delta.partial_json || "";
+      } else if (ev.type === "content_block_stop" && tools[ev.index]) {
+        let input = {}; try { input = JSON.parse(tools[ev.index].json || "{}"); } catch {}
+        onTool?.({ name: tools[ev.index].name, query: input.query || input.url || "" });
+        delete tools[ev.index];
+      } else if (ev.type === "content_block_delta" && ev.delta?.type === "text_delta") {
+        text += ev.delta.text;
+        textBlocks[ev.index] = (textBlocks[ev.index] || "") + ev.delta.text;
+        lastTextIndex = ev.index;
+        onText?.(text);
       } else if (ev.type === "message_delta") {
         stopReason = ev.delta?.stop_reason ?? stopReason;
       } else if (ev.type === "error") {
@@ -62,7 +80,7 @@ export async function streamMessage({ system, messages, maxTokens = 16000, schem
     }
   }
   if (!text) throw new Error("The model returned an empty response.");
-  return { text, stopReason };
+  return { text, lastText: textBlocks[lastTextIndex] ?? text, stopReason };
 }
 
 // Asks the server to check links (≤10 per call). Returns {url: {status, fallback}}, or {}

@@ -33,6 +33,14 @@ with anyone, plus Word and PDF exports.
   it gives a direction ("search the title on BBC Sounds"). Every link is checked before a teacher
   sees it (`/api/check-links`). Only confirmed links survive; any other link becomes plain text
   with a direction to search for it. A resource is never dropped for lack of a link.
+- **Web access.** On the turns that propose resources (Step 11) and experts, places and service
+  (Step 12), the coach can run up to two web searches; when a teacher pastes a link it can read
+  that page. These are Anthropic's server-side tools, configured and capped in the Worker
+  (`webTools`), with a live "Searching the web: …" status. A searched turn takes ~35s and costs
+  roughly 25–35p (measured). Web pages are treated as information, never as instructions.
+- **Prompt caching.** The coach's instructions and the conversation so far are cached between
+  turns (`cachedSystem` / `cachedMessages` in the Worker), so repeated context is billed at a
+  fraction of the normal input price.
 - **Any school, anywhere.** The coach asks where the school is in Step 1, and roots relevance,
   resources, experts and site visits in that place.
 - **Private links** (`/p/<id>`) are stored in Cloudflare KV. Creating one needs the staff
