@@ -35,8 +35,9 @@ function Cards({ cards, variant }) {
   return (
     <div className={`cards${variant ? " cards-" + variant : ""}`}>
       {cards.map((c, i) => (
-        <div key={i} className={`card${variant ? " " + variant : ""}`}>
-          <h3><span>{c.title}</span>{c.week && <span className="wk">{/^\d/.test(c.week) ? `Week ${c.week}` : c.week}</span>}</h3>
+        <div key={i} className={`card${variant ? " " + variant : ""}${/^service as action/i.test(c.title) ? " service" : ""}`}>
+          <h3><span>{c.title.replace(/^service as action\s*[—–:-]\s*/i, "")}</span>{c.week && c.week.length <= 22 && <span className="wk">{/^\d/.test(c.week) ? `Week ${c.week}` : c.week}</span>}</h3>
+          {c.week && c.week.length > 22 && <div className="when"><b>When:</b> {c.week}</div>}
           <Blocks blocks={variant === "rubric" ? splitStrands(c.blocks) : c.blocks} />
         </div>
       ))}

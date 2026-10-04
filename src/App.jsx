@@ -15,6 +15,8 @@ import { PlanView } from "./components/PlanView.jsx";
 import { Welcome, UploadScreen, LoginScreen } from "./components/Screens.jsx";
 import { Layers, Notes, Menu, Sparkle, File } from "./components/Icons.jsx";
 import { useConfirm } from "./components/Confirm.jsx";
+import { LinkBox } from "./components/LinkBox.jsx";
+import { copyText } from "./lib/clipboard.js";
 
 const textOf = (content) =>
   typeof content === "string" ? content : (content || []).filter(b => b.type === "text").map(b => b.text).join("\n");
@@ -76,6 +78,7 @@ export default function App() {
   const [recordOpen, setRecordOpen] = useState(() => window.innerWidth > 1200);
   const [railOpen, setRailOpen] = useState(false);
   const [toast, setToast] = useState(null);
+  const [linkBox, setLinkBox] = useState(null);   // a URL to show for manual copying
 
   const hydrated = useRef(false);
   const scrollRef = useRef(null);
@@ -273,9 +276,10 @@ export default function App() {
     }
   };
 
-  const copyLink = async (p) => {
-    try { await navigator.clipboard.writeText(planUrl(p.id)); notify("Link copied — anyone with it can view this plan."); }
-    catch { notify(planUrl(p.id)); }
+  // Used by both the plan view and the saved-plans list.
+  const copyLink = async (url) => {
+    if (await copyText(url)) notify("Link copied — anyone with it can view this plan.");
+    else setLinkBox(url);
   };
   const removeLink = async (p) => {
     if (!(await confirm({
@@ -359,14 +363,14 @@ export default function App() {
 
         <main className="main">
           {phase === "welcome" ? (
-            <Welcome onStart={chooseMode} library={library} onCopy={copyLink} onDelete={removeLink} />
+            <Welcome onStart={chooseMode} library={library} onCopy={(p) => copyLink(planUrl(p.id))} onDelete={removeLink} />
           ) : phase === "upload" ? (
             <UploadScreen file={file} busy={fileBusy} error={fileErr} onFile={onFile} onClear={() => setFile(null)}
               onGo={() => startUnit("transform", file)} onSkip={() => startUnit("transform", null)} />
           ) : view === "plan" ? (
             <PlanView plan={plan} record={record} building={building} buildText={buildText} buildError={buildError} checkingLinks={checkingLinks}
               elapsed={elapsed} saveState={saveState} onBack={() => setView("coach")} onRebuild={buildPlan}
-              onSave={() => plan && savePlanLink(plan)} notify={notify} />
+              onSave={() => plan && savePlanLink(plan)} onCopyLink={copyLink} />
           ) : (
             <>
               {mode === "transform" && file && (
@@ -410,6 +414,7 @@ export default function App() {
       </div>
       {toast && <div className="toast" role="status">{toast}</div>}
       {confirmDialog}
+      {linkBox && <LinkBox url={linkBox} onClose={() => setLinkBox(null)} />}
     </div>
   );
 }

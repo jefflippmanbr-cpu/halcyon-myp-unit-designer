@@ -32,17 +32,12 @@ function BuildProgress({ text, elapsed, checkingLinks }) {
   );
 }
 
-export function PlanView({ plan, record, building, buildText, buildError, checkingLinks, elapsed, saveState, onBack, onRebuild, onSave, notify }) {
+export function PlanView({ plan, record, building, buildText, buildError, checkingLinks, elapsed, saveState, onBack, onRebuild, onSave, onCopyLink }) {
   const markdown = building ? buildText : plan?.markdown || "";
   const title = useMemo(() => planTitle(markdown), [markdown]);
   const missing = useMemo(() => (!building && plan ? missingFromPlan(record, plan.markdown) : []), [building, plan, record]);
   const [hideMissing, setHideMissing] = useState(false);
   const link = plan?.id ? planUrl(plan.id) : null;
-
-  const copy = async () => {
-    try { await navigator.clipboard.writeText(link); notify("Link copied — anyone with it can view this plan."); }
-    catch { notify(link); }
-  };
 
   return (
     <div className="plan-shell">
@@ -54,7 +49,7 @@ export function PlanView({ plan, record, building, buildText, buildError, checki
           {saveState === "error" && <button className="btn btn-sm btn-ghost btn-danger-text" onClick={onSave}>Couldn't save link — retry</button>}
           {link && saveState !== "saving" && <>
             <span className="save-state ok hide-narrow"><Check size={13} />Saved to a private link</span>
-            <button className="btn btn-sm btn-green" onClick={copy}><Link size={13} />Copy link</button>
+            <button className="btn btn-sm btn-green" onClick={() => onCopyLink(link)}><Link size={13} />Copy link</button>
             <a className="btn btn-sm btn-ghost hide-narrow" href={link} target="_blank" rel="noopener noreferrer"><External size={13} />Open</a>
           </>}
           <button className="btn btn-sm btn-ghost" onClick={() => downloadWord(plan.markdown, title)}><Download size={13} />Word</button>

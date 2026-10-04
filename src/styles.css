@@ -306,8 +306,12 @@ button { font-family: inherit; }
 
 .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin-top: 8px; }
 .card { background: var(--cream); border: 1px solid var(--line); border-radius: 13px; padding: 14px 16px; position: relative; }
+.card h3 > span:first-child { flex: 1 1 auto; min-width: 0; }
+.card .when { font-size: 12.5px; color: var(--gold-ink); background: var(--gold-pale); border-radius: 8px; padding: 6px 10px; margin: 0 0 8px; line-height: 1.45; }
+.card.service { background: var(--green-pale); border-color: rgba(26,89,65,.25); }
+.card.service::before { content: "Service as Action"; display: block; font-size: 9.5px; letter-spacing: 1.4px; text-transform: uppercase; font-weight: 700; color: var(--green); margin-bottom: 5px; }
 .card h3 { font-size: 14.5px; font-weight: 700; color: var(--navy); margin: 0 0 6px; line-height: 1.35; display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
-.card .wk { flex-shrink: 0; font-size: 10.5px; font-weight: 700; color: var(--gold-ink); background: var(--gold-pale); border: 1px solid rgba(217,162,0,.35); border-radius: 12px; padding: 2px 9px; white-space: nowrap; }
+.card .wk { flex-shrink: 0; max-width: 45%; overflow: hidden; text-overflow: ellipsis; font-size: 10.5px; font-weight: 700; color: var(--gold-ink); background: var(--gold-pale); border: 1px solid rgba(217,162,0,.35); border-radius: 12px; padding: 2px 9px; white-space: nowrap; }
 .card .md ul { list-style: none; padding: 0; margin: 4px 0 0; }
 .card .md li { margin: 6px 0; font-size: 13px; line-height: 1.55; }
 .card .md li strong:first-child { display: block; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--green); font-weight: 700; }

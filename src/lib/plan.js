@@ -137,7 +137,7 @@ export const PLAN_SECTIONS = [
 // check the named items (formatives, Explorer Moments, places, resources, experts) actually
 // appear in the plan, and tell the teacher about any that don't instead of trusting it.
 const norm = (s) => (s || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-const NAMED_RE = /^(formative|explorer moment|place|site|resource|expert|partner)\b[^—–:-]*[—–-]\s*(.+)$/i;
+const NAMED_RE = /^(formative|explorer moment|place|site|resource|expert|partner|service)\b[^—–:-]*[—–-]\s*(.+)$/i;
 export function missingFromPlan(record, md) {
   const words = new Set(norm(md).split(" "));
   return record.filter(e => {
