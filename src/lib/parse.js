@@ -32,21 +32,22 @@ export function parseStructured(raw, fallbackStep) {
     return {
       step: Number.isFinite(obj.step) ? obj.step : fallbackStep,
       message: typeof obj.message === "string" ? stripTrailingJsonArtifact(obj.message) : raw,
+      question: typeof obj.question === "string" ? stripTrailingJsonArtifact(obj.question).trim() : "",
       frameworks: Array.isArray(obj.frameworks) ? obj.frameworks : [],
       captured: Array.isArray(obj.captured) ? obj.captured : [],
     };
   } catch {
-    return { step: fallbackStep, message: raw, frameworks: [], captured: [] };
+    return { step: fallbackStep, message: raw, question: "", frameworks: [], captured: [] };
   }
 }
 
 // While a coach turn streams, the text so far is an incomplete JSON object. Pull out
-// whatever of the "message" string value has arrived, decoding JSON escapes, so the
+// whatever of a string field ("message", then "question") has arrived, decoding JSON escapes, so the
 // teacher sees the reply forming instead of waiting for the whole object. Returns null
 // until the message field has started. An escape split across chunks is simply held back
 // until the next chunk completes it.
-export function partialMessage(text) {
-  const m = /"message"\s*:\s*"/.exec(text);
+export function partialMessage(text, field = "message") {
+  const m = new RegExp(`"${field}"\\s*:\\s*"`).exec(text);
   if (!m) return null;
   let out = "";
   for (let i = m.index + m[0].length; i < text.length; i++) {

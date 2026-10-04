@@ -48,6 +48,18 @@ function Captured({ captured, onOpen }) {
   );
 }
 
+// The coach's question for the teacher, pulled out of the prose into its own block so it
+// never gets lost at the end of a long reply.
+function Ask({ question, streaming }) {
+  if (!question) return null;
+  return (
+    <div className={`ask${streaming ? " caret" : ""}`}>
+      <span className="ask-label">Your turn</span>
+      <p>{question}</p>
+    </div>
+  );
+}
+
 export function Wait({ note, elapsed }) {
   return (
     <div className="msg coach">
@@ -76,13 +88,16 @@ export function MessageList({ msgs, streamText, loading, waitNote, elapsed, erro
           <div key={i}>
             <div className="msg coach">
               <Avatar />
-              <div className="bubble"><Md text={m.content} pending={m.linksPending} /><Badges frameworks={m.frameworks} /></div>
+              <div className="bubble"><Md text={m.content} pending={m.linksPending} /><Badges frameworks={m.frameworks} /><Ask question={m.question} /></div>
             </div>
             <Captured captured={m.captured} onOpen={onOpenRecord} />
           </div>
         ))}
         {loading && (streamText
-          ? <div className="msg coach"><Avatar /><div className="bubble"><Md text={streamText} streaming /></div></div>
+          ? <div className="msg coach"><Avatar /><div className="bubble">
+              <Md text={streamText.message} streaming={!streamText.question} />
+              <Ask question={streamText.question} streaming />
+            </div></div>
           : <Wait note={waitNote} elapsed={elapsed} />)}
         {!loading && needsReply && (
           <div className="retry" role="alert">
@@ -101,7 +116,7 @@ export function Composer({ taRef, value, onChange, onSend, disabled, hint }) {
   return (
     <div className="composer">
       <div className="composer-row">
-        <textarea ref={taRef} value={value} rows={1} placeholder="Respond to the coach — or share any idea, even if it belongs to a later step…"
+        <textarea ref={taRef} value={value} rows={1} placeholder="Reply, or share any idea — even one for a later step…"
           onChange={(e) => { onChange(e.target.value); grow(e); }}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (can) onSend(); } }} aria-label="Message to the coach" />
         <button className="send" onClick={onSend} disabled={!can} aria-label="Send"><Send size={16} /></button>

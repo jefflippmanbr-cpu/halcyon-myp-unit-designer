@@ -151,7 +151,10 @@ export default function App() {
     }
     const call = () => streamMessage({
       system: COACH_PROMPT + recordContext(recordAsText(record)), messages: apiMsgs, schema: COACH_SCHEMA,
-      onText: (t) => { const pm = partialMessage(t); if (pm) setStreamText(pm); },
+      onText: (t) => {
+        const pm = partialMessage(t);
+        if (pm) setStreamText({ message: pm, question: partialMessage(t, "question") || "" });
+      },
     });
     try {
       let { text } = await call();
@@ -167,7 +170,7 @@ export default function App() {
         } catch { /* keep the first answer */ }
       }
       const turn = history.filter(m => m.role === "assistant").length + 1;
-      const reply = { role: "assistant", content: parsed.message, frameworks: parsed.frameworks, captured: parsed.captured, raw: text };
+      const reply = { role: "assistant", content: parsed.message, question: parsed.question, frameworks: parsed.frameworks, captured: parsed.captured, raw: text };
       if (findUrls(reply.content).length) reply.linksPending = true;
       setMsgs([...history, reply]);
       if (reply.linksPending) verifyMessageLinks(reply);
@@ -238,7 +241,7 @@ export default function App() {
     if (window.innerWidth <= 1200) setRecordOpen(false);
     const transcript = msgs.map(m => m.role === "user"
       ? `TEACHER: ${textOf(m.content)}`
-      : `COACH: ${m.content}`).join("\n\n");
+      : `COACH: ${m.content}${m.question ? `\n${m.question}` : ""}`).join("\n\n");
     const doc = Array.isArray(msgs[0]?.content) ? msgs[0].content.find(b => b.type === "document") : null;
     const prompt = `UNIT RECORD — authoritative; every entry must appear in the plan:\n\n${recordAsText(record)}\n\n---\n\nCOACHING CONVERSATION — for context:\n\n${transcript}\n\n---\n\nWrite the full unit plan now, following the structure exactly.`;
     let last = 0;

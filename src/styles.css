@@ -143,6 +143,11 @@ button { font-family: inherit; }
 .md table { border-collapse: collapse; font-size: 12.5px; margin: 8px 0; }
 .md th, .md td { border: 1px solid var(--line); padding: 5px 8px; text-align: left; }
 
+.ask { margin-top: 12px; padding: 10px 14px 11px; background: var(--green-pale); border-left: 3px solid var(--green); border-radius: 0 10px 10px 0; }
+.ask-label { display: block; font-size: 9.5px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; color: var(--green); margin-bottom: 3px; }
+.ask p { margin: 0; font-size: 14.5px; font-weight: 600; line-height: 1.5; color: var(--navy-dark); }
+.ask.caret p::after { content: ""; display: inline-block; width: 7px; height: 15px; background: var(--green); margin-left: 3px; vertical-align: -2px; animation: blink 1s steps(2) infinite; }
+.ask.caret::after { content: none; }
 .badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--line); }
 .badge { display: inline-flex; align-items: center; gap: 6px; background: var(--fw-pale); border: 1px solid color-mix(in srgb, var(--fw) 30%, transparent);
   color: var(--fw-ink); border-radius: 20px; padding: 3px 10px; font-size: 11px; font-weight: 700; cursor: pointer; line-height: 1.35; }
